@@ -11,6 +11,8 @@
   "license": "ISC",
   "dependencies": {
     "restify": "^5.0.1",
-    "rethinkdb": "^2.3.3"
+    "restify-router": "^0.4.2",
+    "rethinkdb": "^2.3.3",
+    "rethinkdbdash": "^2.3.29"
   }
 }
