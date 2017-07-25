@@ -55,10 +55,12 @@ function* update(req, res, next){
     const { completed } = req.body;
     const { id } = req.params;
     try{
-
-        const todo = yield r.table('todos').get(id).update({completed: completed}, {returnChanges: true}).run()
-                        .then(result => result.changes[0].new_val)
-        res.send(todo)
+        const todo = yield r.table('todos').get(id).run();
+        if(todo){
+            const todo = yield r.table('todos').get(id).update({completed: completed}, {returnChanges: true}).run()
+                            .then(result => result.changes[0].new_val)
+            res.send(todo);
+        } else handleError(res, next)(new Error(`TODO with ID ${id} does not exists`));
     }catch(err){
         handleError(err);
     }
@@ -68,8 +70,11 @@ function* update(req, res, next){
 function* remove(req, res, next){
     const {id} = req.params
     try{
-        yield r.table('todos').get(id).delete().run();
-        res.send(`TODO with id ${id} sucessfully deleted`);
+        const todo = yield r.table('todos').get(id).run();
+        if(todo){
+            const todo = yield r.table('todos').get(id).delete().run();
+            res.send(`TODO with ID ${id} sucessfully deleted`);
+        } else handleError(res, next)(new Error(`TODO with ID ${id} does not exists`));
     }catch(err){
         handleError(res);
     }
