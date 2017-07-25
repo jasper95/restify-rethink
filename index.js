@@ -8,70 +8,72 @@ const server = restify.createServer();
 
 server.pre(restify.plugins.pre.userAgentConnection());
 server.use(restify.plugins.bodyParser());
-server.get('/todos', get);
-server.post('/todos', create);
-server.get('/todos/:id', getById);
-server.patch('todos/:id', update);
-server.del('/todos/:id', remove)
+server.get('/todos', Promise.coroutine(get));
+server.post('/todos', Promise.coroutine(create));
+server.get('/todos/:id', Promise.coroutine(getById));
+server.patch('todos/:id', Promise.coroutine(update));
+server.del('/todos/:id', Promise.coroutine(remove));
 
-function get(req, res, next) {
-  r.table('todos').orderBy({index: "createdAt"}).run().then(function(cursor) {
-      return cursor.toArray();
-  }).then(function(result) {
-      res.send(JSON.stringify(result));
-  }).error(handleError(res))
-  .finally(function(){
-      return next();
-  });
+function* get(req, res, next) {
+    try{
+        const todos = yield r.table('todos').orderBy({index: "createdAt"}).run()
+                                .then(cursor => cursor.toArray());
+        res.send(todos);
+    }catch(err){
+        handleError(res)
+    }
+    return next();
 }
 
-function getById(req, res, next){
+function* getById(req, res, next){
     const {id} = req.params
-    r.table('todos').get(id).run().then(function(result){
-        res.send(result);
-    }).error(handleError(res))
-    .finally(function(){
-        return next();
-    });
+    try{
+        const todo = r.table('todos').get(id).run();
+        res.send(todo);
+    }catch(err){
+        handleError(res);
+    }
+    return next();
 }
 
-function create(req, res, next) {
-    const todo = req.body;
-    todo.createdAt = r.now();
-    r.table('todos').insert(todo, {returnChanges: true}).run()
-      .then(function(result) {
-        if (result.inserted !== 1) {
+function* create(req, res, next) {
+    const {title} = req.body;
+    const todo = {completed : false, createdAt: r.now(), title: title};
+    try {
+        const result = yield r.table('todos').insert(todo, {returnChanges: true}).run()
+        if (result.inserted !== 1)
             handleError(res, next)(new Error("Document was not inserted."));
-        }
-        else {
-            res.send(JSON.stringify(result.changes[0].new_val));
-        }
-    }).error(handleError(res))
-    .finally(function(){
-        return next()
-    });
+        else
+            res.send(result.changes[0].new_val);
+    }catch(err){
+        handleError(res);
+    }
+    return next();
 }
 
-function update(req, res, next){
+function* update(req, res, next){
     const { completed } = req.body;
     const { id } = req.params;
-    r.table('todos').get(id).update({completed: completed}, {returnChanges: true}).run()
-        .then(function(result){
-            res.send(JSON.stringify(result.changes[0].new_val));
-        }).error(handleError(res))
-        .finally(function(){
-            return next();
-        })
+    try{
+
+        const todo = yield r.table('todos').get(id).update({completed: completed}, {returnChanges: true}).run()
+                        .then(result => result.changes[0].new_val)
+        res.send(todo)
+    }catch(err){
+        handleError(err);
+    }
+    return next();
 }
 
-function remove(req, res, next){
+function* remove(req, res, next){
     const {id} = req.params
-    r.table('todos').get(id).delete().run().then(function(result){
-        res.send(result);
-    }).error(handleError(res))
-    .finally(function(){
-        return next();
-    });
+    try{
+        yield r.table('todos').get(id).delete().run();
+        res.send(`TODO with id ${id} sucessfully deleted`);
+    }catch(err){
+        handleError(res);
+    }
+    return next();
 }
 
 function handleError(res) {
